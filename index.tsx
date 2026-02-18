@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
   Languages, Clock, Phone, Hash, Sparkles, Copy, Check, Instagram, 
-  Plus, Settings, AlertCircle
+  Plus, Settings, AlertCircle, X, Loader2, Trash2
 } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -13,7 +14,7 @@ const COLORS = {
   BUTTERSCOTCH: '#FDD475'
 };
 
-const DEFAULT_TAGS = ['Vernon', 'BC', 'Okanagan', 'ShopLocal'];
+const DEFAULT_TAGS = ['Sushi', 'Ramen', 'shopLocal'];
 
 const CopyButton = ({ text, label = "", baseColor, className = "" }) => {
   const [copied, setCopied] = useState(false);
@@ -49,11 +50,32 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [phone, setPhone] = useState("778-475-6191");
-  const [hours, setHours] = useState({ open: "12:00 PM", close: "6:30 PM" });
+  const [hours, setHours] = useState({ 
+    openTime: "12:00", 
+    openPeriod: "PM", 
+    closeTime: "06:30", 
+    closePeriod: "PM" 
+  });
   const [hasKey, setHasKey] = useState(true);
+  const [mainCopied, setMainCopied] = useState(false);
+  
+  // Hashtag registration states
+  const [tagInput, setTagInput] = useState("");
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const tagInputRef = useRef(null);
+  
+  const TAG_STORAGE_KEY = 'insta-tags-master-v12-stable';
+  
   const [tags, setTags] = useState(() => {
-    const saved = localStorage.getItem('insta-tags-final-v2');
-    return saved ? JSON.parse(saved) : DEFAULT_TAGS.map(t => ({ id: Math.random().toString(), text: t, active: true }));
+    const saved = localStorage.getItem(TAG_STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return DEFAULT_TAGS.map(t => ({ id: Math.random().toString(), text: t, active: true }));
+      }
+    }
+    return DEFAULT_TAGS.map(t => ({ id: Math.random().toString(), text: t, active: true }));
   });
 
   useEffect(() => {
@@ -68,7 +90,16 @@ const App = () => {
     checkKey();
   }, []);
 
-  useEffect(() => { localStorage.setItem('insta-tags-final-v2', JSON.stringify(tags)); }, [tags]);
+  useEffect(() => { 
+    localStorage.setItem(TAG_STORAGE_KEY, JSON.stringify(tags)); 
+  }, [tags]);
+
+  // Focus input when starting addition
+  useEffect(() => {
+    if (isAddingTag && tagInputRef.current) {
+      tagInputRef.current.focus();
+    }
+  }, [isAddingTag]);
 
   const handleOpenKey = async () => {
     if (window.aistudio) {
@@ -84,14 +115,15 @@ const App = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `以下の内容で魅力的なInstagram投稿を英語で作成してください。日本語の指示は次の通り：\n${prompt}`,
+        contents: `以下の内容で魅力的なInstagram投稿を英語で作成してください。英語の本文は125文字から250文字の範囲で作成してください。また、本文の内容に合ったハッシュタグを3つ生成してください。日本語の指示は次の通り：\n${prompt}`,
         config: {
           systemInstruction: `あなたはプロフェッショナルなInstagramマーケターです。
           入力内容を元に以下のJSONを返してください。
-          1. caption: 英語の投稿本文。
+          1. caption: 英語の投稿本文。長さは必ず125文字以上、250文字以内にしてください。
           2. caption_jp: 投稿本文の丁寧な日本語訳（省略しないでください）。
           3. imagePhrase: 画像に入れる3-5単語の短いキャッチコピー（英語）。
-          4. imagePhrase_jp: そのキャッチコピーの日本語訳。`,
+          4. imagePhrase_jp: そのキャッチコピーの日本語訳。
+          5. hashtags: 内容に合ったハッシュタグを3つ生成（#は含めず単語のみ）。`,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -99,9 +131,13 @@ const App = () => {
               caption: { type: Type.STRING },
               caption_jp: { type: Type.STRING },
               imagePhrase: { type: Type.STRING },
-              imagePhrase_jp: { type: Type.STRING }
+              imagePhrase_jp: { type: Type.STRING },
+              hashtags: { 
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
             },
-            required: ["caption", "caption_jp", "imagePhrase", "imagePhrase_jp"]
+            required: ["caption", "caption_jp", "imagePhrase", "imagePhrase_jp", "hashtags"]
           }
         }
       });
@@ -120,21 +156,88 @@ const App = () => {
     }
   };
 
+  const hoursSentence = useMemo(() => 
+    `⏰ We're open from ${hours.openTime} ${hours.openPeriod} to ${hours.closeTime} ${hours.closePeriod} today.`, 
+    [hours]
+  );
+  const phoneText = useMemo(() => `📞 ${phone}`, [phone]);
+  const contactBlock = useMemo(() => `${phoneText}\n${hoursSentence}`, [phoneText, hoursSentence]);
+
   const finalContent = useMemo(() => {
-    const activeTagsStr = tags.filter(t => t.active).map(t => `#${t.text}`).join(' ');
-    const hoursStr = `⏰ Today: ${hours.open} - ${hours.close}`;
-    const phoneStr = `📞 ${phone}`;
+    const aiTagsStr = result?.hashtags ? result.hashtags.map(t => `#${t.trim()}`).join(' ') : "";
+    const manualTagsStr = tags.filter(t => t.active).map(t => `#${t.text}`).join(' ');
     
     let content = "";
     if (result) {
-      content += `【 ${result.imagePhrase} 】\n\n`;
+      content += `【 ${result.imagePhrase} 】\n`;
       content += `${result.caption}\n\n`;
     } else {
       content += `[ AI Generated Caption will appear here ]\n\n`;
     }
-    content += `${phoneStr}\n${hoursStr}\n\n${activeTagsStr}`;
+    content += `${phoneText}\n${hoursSentence}\n\n${aiTagsStr} ${manualTagsStr}`.trim();
     return content;
-  }, [result, phone, hours, tags]);
+  }, [result, phoneText, hoursSentence, tags]);
+
+  const handleMainCopy = () => {
+    navigator.clipboard.writeText(finalContent);
+    setMainCopied(true);
+    setTimeout(() => setMainCopied(false), 2000);
+  };
+
+  // --- REBUILT HASHTAG LOGIC (INLINE VERSION) ---
+  const confirmAddTag = () => {
+    const cleanText = tagInput.trim().replace(/^#+/, "");
+    if (cleanText === "") {
+      setIsAddingTag(false);
+      setTagInput("");
+      return;
+    }
+
+    if (tags.some(t => t.text.toLowerCase() === cleanText.toLowerCase())) {
+      alert("既に登録されています");
+      return;
+    }
+
+    const newTag = {
+      id: `tag-${Date.now()}`,
+      text: cleanText,
+      active: true
+    };
+
+    setTags(prev => [...prev, newTag]);
+    setTagInput("");
+    setIsAddingTag(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') confirmAddTag();
+    if (e.key === 'Escape') {
+      setTagInput("");
+      setIsAddingTag(false);
+    }
+  };
+
+  const toggleTag = (id) => {
+    setTags(prev => prev.map(t => t.id === id ? { ...t, active: !t.active } : t));
+  };
+
+  const removeTag = (e, id) => {
+    e.stopPropagation();
+    setTags(prev => prev.filter(t => t.id !== id));
+  };
+
+  const handleClearPrompt = () => {
+    setPrompt("");
+    setResult(null); 
+  };
+
+  const toggleOpenPeriod = () => {
+    setHours(prev => ({ ...prev, openPeriod: prev.openPeriod === "AM" ? "PM" : "AM" }));
+  };
+
+  const toggleClosePeriod = () => {
+    setHours(prev => ({ ...prev, closePeriod: prev.closePeriod === "AM" ? "PM" : "AM" }));
+  };
 
   if (!hasKey) {
     return (
@@ -161,46 +264,70 @@ const App = () => {
   }
 
   return (
-    <div className="max-w-xl mx-auto px-6 py-12 md:py-20">
-      <header className="text-center mb-12">
-        <h1 className="text-6xl font-londrina text-slate-900 mb-2">InstaPrep</h1>
-        <p className="font-caveat text-2xl text-orange-400">Smart Creator Studio</p>
+    <div className="max-w-xl mx-auto px-6 py-2 md:py-6">
+      <header className="relative text-center mb-6 pt-4 overflow-visible flex flex-col items-center">
+        {/* Update Logo: White watermark shifted to overlap title on the left */}
+        <div className="absolute top-[-30px] left-[-20px] sm:left-[5%] opacity-[0.25] text-white pointer-events-none transform -rotate-12 z-0">
+          <Instagram size={180} strokeWidth={1} />
+        </div>
+        <div className="relative z-10 w-full">
+          <h1 className="text-5xl sm:text-7xl font-londrina text-slate-900 mb-0 leading-[1.0] whitespace-nowrap">InstaPrep Studio</h1>
+          <p className="font-caveat text-xl sm:text-2xl text-orange-400 leading-none mt-[14px]">Create Once, Post Everywhere</p>
+        </div>
       </header>
 
-      <div className="flex flex-col gap-10">
-        <section className="card-ios p-8 shadow-2xl flex flex-col">
+      <div className="flex flex-col gap-6">
+        <section className="card-ios p-6 shadow-xl flex flex-col">
           <SectionHeader icon={Languages} title="Draft Input" color={COLORS.BABY_BLUE} />
-          <textarea 
-            value={prompt}
-            onChange={e => setPrompt(e.target.value)}
-            placeholder="日本語で投稿内容を自由に入力してください..."
-            className="w-full h-36 p-5 rounded-[24px] bg-white/40 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-100/50 transition-all text-slate-700 font-medium text-base resize-none"
-          />
+          <div className="relative">
+            <textarea 
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              placeholder="日本語で投稿内容を自由を入力してください..."
+              className="w-full h-32 p-4 pr-12 rounded-[20px] bg-white/40 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-100/50 transition-all text-slate-700 font-medium text-base resize-none"
+            />
+            {prompt && (
+              <button 
+                onClick={handleClearPrompt}
+                className="absolute top-3 right-3 p-2 rounded-full bg-slate-200/50 text-slate-500 hover:text-red-500 hover:bg-red-50 transition-all z-10"
+                title="Clear draft"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
           <button 
             onClick={handleGenerate}
             disabled={loading || !prompt}
-            className="w-full mt-6 py-5 rounded-[24px] bg-[#FDD475] text-slate-800 font-black text-xl shadow-lg active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
+            className={`w-full mt-4 py-4 rounded-[20px] ${loading ? 'bg-orange-100 animate-pulse' : 'bg-[#FDD475]'} text-slate-800 font-black text-xl shadow-lg active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-3 relative overflow-hidden`}
           >
-            {loading ? "GENERATING..." : <><Sparkles size={24} className="text-orange-500" /> AIで文章を作る</>}
+            {loading ? (
+              <><Loader2 size={24} className="animate-spin text-orange-500" /> GENERATING...</>
+            ) : (
+              <>
+                <Sparkles size={24} className="text-orange-500" /> 
+                {result ? "もう一度生成" : "AIで文章を作る"}
+              </>
+            )}
           </button>
         </section>
 
         {result && (
-          <div className="space-y-6 animate-in">
-            <div className="card-ios p-8 border-orange-100">
-               <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block mb-3">Image Text (Overlay)</span>
-               <p className="text-3xl font-black text-slate-800 leading-tight mb-6 italic">"{result.imagePhrase}"</p>
-               <div className="flex justify-between items-center pt-4 border-t border-slate-100/50">
+          <div className="space-y-4 animate-in">
+            <div className="card-ios p-6 border-orange-100">
+               <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block mb-2">Image Text (Overlay)</span>
+               <p className="text-2xl font-black text-slate-800 leading-tight mb-4 italic">"{result.imagePhrase}"</p>
+               <div className="flex justify-between items-center pt-3 border-t border-slate-100/50">
                   <span className="text-xs text-slate-400 italic font-medium">訳: {result.imagePhrase_jp}</span>
                   <CopyButton text={result.imagePhrase} baseColor={COLORS.PEACH} />
                </div>
             </div>
-            <div className="card-ios p-8 border-blue-100">
-               <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-3">English Caption</span>
-               <p className="text-base leading-relaxed text-slate-700 font-medium mb-6 whitespace-pre-wrap">{result.caption}</p>
+            <div className="card-ios p-6 border-blue-100">
+               <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-2">English Caption</span>
+               <p className="text-base leading-relaxed text-slate-700 font-medium mb-4 whitespace-pre-wrap">{result.caption}</p>
                
-               <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 mb-6">
-                  <span className="font-black text-[9px] text-slate-400 uppercase tracking-wider block mb-2 underline decoration-blue-200 underline-offset-4 tracking-widest">Japanese Translation:</span>
+               <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-100 mb-4">
+                  <span className="font-black text-[9px] text-slate-400 uppercase tracking-wider block mb-1">Japanese Translation:</span>
                   <div className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
                     {result.caption_jp}
                   </div>
@@ -212,67 +339,137 @@ const App = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
           <div className="card-ios p-6 flex flex-col h-full">
             <div className="flex-grow">
-              <SectionHeader icon={Clock} title="Hours Today" color={COLORS.BUTTER} />
-              <div className="flex gap-2 mb-4">
-                 <input type="text" value={hours.open} onChange={e => setHours({...hours, open: e.target.value})} className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100 outline-none" />
-                 <input type="text" value={hours.close} onChange={e => setHours({...hours, close: e.target.value})} className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100 outline-none" />
+              <SectionHeader icon={Clock} title="Business Hours" color={COLORS.BUTTER} />
+              <div className="flex gap-2 mb-2">
+                 <div className="w-1/2 flex border border-slate-100 rounded-xl bg-white/50 overflow-hidden shadow-sm group">
+                   <input 
+                     type="text" 
+                     value={hours.openTime} 
+                     onChange={e => setHours({...hours, openTime: e.target.value})} 
+                     className="w-full bg-transparent p-2 text-xs font-bold text-slate-800 outline-none text-center" 
+                   />
+                   <button 
+                     type="button"
+                     onClick={toggleOpenPeriod}
+                     className={`px-3 transition-all font-black text-[10px] border-l border-slate-100 ${hours.openPeriod === 'AM' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}
+                   >
+                     {hours.openPeriod}
+                   </button>
+                 </div>
+                 <div className="w-1/2 flex border border-slate-100 rounded-xl bg-white/50 overflow-hidden shadow-sm group">
+                   <input 
+                     type="text" 
+                     value={hours.closeTime} 
+                     onChange={e => setHours({...hours, closeTime: e.target.value})} 
+                     className="w-full bg-transparent p-2 text-xs font-bold text-slate-800 outline-none text-center" 
+                   />
+                   <button 
+                     type="button"
+                     onClick={toggleClosePeriod}
+                     className={`px-3 transition-all font-black text-[10px] border-l border-slate-100 ${hours.closePeriod === 'AM' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}
+                   >
+                     {hours.closePeriod}
+                   </button>
+                 </div>
               </div>
-            </div>
-            <div className="mt-auto">
-               <CopyButton text={`Today: ${hours.open} - ${hours.close}`} baseColor={COLORS.BUTTER} label="COPY HOURS" className="w-full" />
+              <p className="text-[10px] text-slate-400 font-medium italic mt-2">"{hoursSentence}"</p>
             </div>
           </div>
 
           <div className="card-ios p-6 flex flex-col h-full">
             <div className="flex-grow">
               <SectionHeader icon={Phone} title="Phone Number" color={COLORS.PEACH} />
-              <div className="mb-4">
-                <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/50 p-3 rounded-xl text-lg font-black text-slate-800 border border-slate-100 text-center outline-none" />
+              <div className="mb-2">
+                <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/50 p-2 rounded-xl text-lg font-black text-slate-800 border border-slate-100 text-center outline-none shadow-sm" />
               </div>
-            </div>
-            <div className="mt-auto">
-              <CopyButton text={phone} baseColor={COLORS.PEACH} label="COPY PHONE" className="w-full" />
             </div>
           </div>
         </div>
 
-        <section className="card-ios p-8">
+        <div className="flex justify-center -mt-2">
+           <CopyButton text={contactBlock} baseColor={COLORS.BUTTERSCOTCH} label="COPY PHONE & HOURS" className="w-full sm:w-auto" />
+        </div>
+
+        {/* REBUILT HASHTAG SECTION */}
+        <section className="card-ios p-6 shadow-lg">
           <SectionHeader icon={Hash} title="Hashtags" color={COLORS.BABY_BLUE} />
-          <div className="flex flex-wrap gap-2.5 mb-8 max-h-48 overflow-y-auto no-scrollbar">
+          <div className="flex flex-wrap gap-2 mb-2 max-h-48 overflow-y-auto no-scrollbar">
             {tags.map(t => (
-              <button key={t.id} onClick={() => setTags(tags.map(tag => tag.id === t.id ? {...tag, active: !tag.active} : tag))}
-                className={`px-4 py-2 rounded-2xl text-[11px] font-black transition-all ${t.active ? 'bg-slate-800 text-white shadow-xl scale-105' : 'bg-white text-slate-400 border border-slate-100'}`}>
-                #{t.text}
-              </button>
+              <div key={t.id} className="relative group">
+                <button 
+                  onClick={() => toggleTag(t.id)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${t.active ? 'bg-slate-800 text-white shadow-lg' : 'bg-white/40 text-slate-400 border border-slate-100'}`}
+                >
+                  #{t.text}
+                </button>
+                <button 
+                  type="button"
+                  onClick={(e) => removeTag(e, t.id)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10 shadow-md scale-75 group-hover:scale-100"
+                >
+                  <X size={10} strokeWidth={4} />
+                </button>
+              </div>
             ))}
-            <button onClick={() => {const text = prompt("新規タグ名:"); if(text) setTags([...tags, {id: Math.random().toString(), text, active: true}])}}
-              className="px-4 py-2 rounded-2xl border-2 border-dashed border-slate-200 text-slate-300 font-bold text-[11px] flex items-center gap-1">
-              <Plus size={14} /> ADD
-            </button>
+            
+            {isAddingTag ? (
+              <div className="flex items-center gap-1 animate-in zoom-in-95 duration-200">
+                <input 
+                  ref={tagInputRef}
+                  type="text" 
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onBlur={confirmAddTag}
+                  placeholder="tag..."
+                  className="px-3 py-1.5 rounded-xl border-2 border-slate-800 bg-white text-slate-800 font-black text-[10px] outline-none w-24"
+                />
+                <button onClick={confirmAddTag} className="p-1.5 bg-slate-800 text-white rounded-lg"><Check size={12} /></button>
+              </div>
+            ) : (
+              <button 
+                type="button"
+                onClick={() => setIsAddingTag(true)}
+                className="px-4 py-2 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 font-black text-[10px] flex items-center gap-2 hover:border-slate-800 hover:text-slate-800 hover:bg-white/50 transition-all active:scale-95"
+              >
+                <Plus size={14} /> ADD NEW
+              </button>
+            )}
           </div>
-          <CopyButton text={tags.filter(t => t.active).map(t => `#${t.text}`).join(' ')} baseColor={COLORS.BABY_BLUE} label="COPY TAGS" className="w-full" />
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-3 opacity-60">Click to Toggle / Hover to Delete</p>
         </section>
 
-        <section className="card-ios p-8 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden flex flex-col min-h-[450px]">
-          <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none"><Instagram size={150} /></div>
-          <h2 className="text-xl font-black flex items-center gap-3 mb-6 relative z-10"><Instagram size={24} className="text-pink-500" /> POST PREVIEW</h2>
-          <div className="flex-grow bg-slate-800/60 backdrop-blur-md rounded-[24px] p-6 text-[12px] font-mono leading-relaxed text-slate-300 mb-8 border border-white/5 relative z-10 whitespace-pre-wrap overflow-y-auto max-h-[400px]">
+        <section className="card-ios p-6 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden flex flex-col min-h-[400px]">
+          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Instagram size={120} /></div>
+          <h2 className="text-xl font-black flex items-center gap-3 mb-4 relative z-10"><Instagram size={20} className="text-pink-500" /> POST PREVIEW</h2>
+          <div className="flex-grow bg-slate-800/60 backdrop-blur-md rounded-[20px] p-4 text-[12px] font-mono leading-relaxed text-slate-300 mb-4 border border-white/5 relative z-10 whitespace-pre-wrap overflow-y-auto max-h-[350px]">
             {finalContent}
           </div>
           <button 
-            onClick={() => {navigator.clipboard.writeText(finalContent); alert("コピーしました！")}} 
-            className="w-full py-6 rounded-[24px] bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 text-slate-900 font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 transition-transform relative z-10"
+            onClick={handleMainCopy} 
+            style={{ backgroundColor: mainCopied ? '#10b981' : undefined }}
+            className={`w-full py-5 rounded-[20px] ${mainCopied ? '' : 'bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300'} text-slate-900 font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 transition-all relative z-10 flex items-center justify-center gap-2`}
           >
-            Copy Everything
+            {mainCopied ? <><Check size={20}/> COPIED!</> : "Copy Everything"}
           </button>
         </section>
       </div>
 
-      <footer className="mt-24 text-center">
-        <p className="opacity-20 text-[10px] font-black uppercase tracking-[0.4em]">© 2025 InstaPrep Studio • Vernorn BC</p>
+      <footer className="mt-4 text-center pb-8 border-t border-slate-200/50 pt-6">
+        <div className="flex flex-col gap-1">
+          <a 
+            href="https://www.instagram.com/matataki.creative/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-[11px] font-black text-orange-500 uppercase tracking-[0.2em] hover:text-orange-600 transition-colors"
+          >
+            Built by @matataki.creative
+          </a>
+          <p className="opacity-40 text-[9px] font-bold uppercase tracking-[0.1em]">©️Sakura saku enterprise LTD.</p>
+        </div>
       </footer>
     </div>
   );
