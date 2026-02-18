@@ -6,26 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>InstaPrep Studio</title>
   
-  <!-- エラー検知用 -->
-  <script>
-    window.onerror = function(msg, url, line, col, error) {
-      console.error("Global Error: " + msg);
-      const errDiv = document.getElementById('debug-error') || document.createElement('div');
-      errDiv.id = 'debug-error';
-      errDiv.style.cssText = 'position:fixed;bottom:0;left:0;width:100%;z-index:9999;background:rgba(255,0,0,0.8);color:white;padding:10px;font-size:12px;word-break:break-all;';
-      errDiv.textContent = 'App Error: ' + msg + ' (Line: ' + line + ')';
-      document.body.appendChild(errDiv);
-    };
-    window.process = { env: { API_KEY: "" } };
-  </script>
-
-  <!-- Babel & Tailwind -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Noto+Sans+JP:wght@400;700&family=Inter:wght@400;700&family=Londrina+Shadow&family=Bebas+Neue&family=Outfit:wght@800&family=Playfair+Display:ital,wght@1,700&family=Damion&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Noto+Sans+JP:wght@400;700&family=Inter:wght@400;700&family=Londrina+Shadow&family=Bebas+Neue&family=Outfit:wght@800&display=swap" rel="stylesheet">
   
   <script type="importmap">
 {
@@ -35,7 +21,6 @@
     "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
     "lucide-react": "https://esm.sh/lucide-react@0.474.0?external=react",
     "@google/genai": "https://esm.sh/@google/genai@1.41.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/"
   }
 }
@@ -46,14 +31,14 @@
       margin: 0;
       background-color: #F8F9FA;
       background-image: radial-gradient(at 0% 0%, #C1E1DC 0px, transparent 50%), radial-gradient(at 100% 0%, #FFCCAC 0px, transparent 50%);
-      background-size: 100% 100%;
       background-attachment: fixed;
       min-height: 100vh;
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
     }
     #root:empty::after {
-      content: "LOADING INSTAPREP...";
+      content: "BOOTING STUDIO...";
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: #FDD475;
+      font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: #FDD475;
       letter-spacing: 4px; animation: pulse 1.5s infinite;
     }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
@@ -63,6 +48,7 @@
       -webkit-backdrop-filter: blur(20px);
       border-radius: 32px;
       border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
     }
     .font-londrina { font-family: 'Londrina Shadow', cursive; }
     .font-caveat { font-family: 'Caveat', cursive; }
@@ -70,6 +56,189 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" data-type="module" src="./index.tsx"></script>
+
+  <!-- 全てのReactコードをここに集約 -->
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect } from 'react';
+    import ReactDOM from 'react-dom/client';
+    import { 
+      Languages, Clock, Phone, Hash, Sparkles, Copy, Check, Instagram, ArrowRight
+    } from 'lucide-react';
+    import { GoogleGenAI, Type } from "@google/genai";
+
+    // --- CONFIG ---
+    const COLORS = {
+      BABY_BLUE: '#C1E1DC',
+      PEACH: '#FFCCAC',
+      BUTTER: '#FFEB94',
+      BUTTERSCOTCH: '#FDD475'
+    };
+    const DEFAULT_TAGS = ['Vernon', 'BC', 'Okanagan', 'ExploreBC'];
+    const SHOP_PHONE = "778-475-6191";
+
+    // --- AI SERVICE ---
+    const ai = new GoogleGenAI({ apiKey: window.process?.env?.API_KEY || "" });
+
+    async function generateInstaPost(japaneseText) {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: japaneseText,
+        config: {
+          systemInstruction: "あなたはInstagram投稿アシスタントです。入力された日本語から魅力的な英語投稿を作成し、JSON形式で返してください。properties: {caption, caption_jp, imagePhrase, imagePhrase_jp}",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              caption: { type: Type.STRING },
+              caption_jp: { type: Type.STRING },
+              imagePhrase: { type: Type.STRING },
+              imagePhrase_jp: { type: Type.STRING }
+            },
+            required: ["caption", "caption_jp", "imagePhrase", "imagePhrase_jp"]
+          }
+        }
+      });
+      return JSON.parse(response.text);
+    }
+
+    // --- COMPONENTS ---
+    const CopyButton = ({ text, label, baseColor }) => {
+      const [copied, setCopied] = useState(false);
+      const handleCopy = () => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      };
+      return (
+        <button 
+          onClick={handleCopy}
+          style={{ backgroundColor: copied ? '#10b981' : baseColor }}
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black text-slate-800 transition-all active:scale-95 shadow-sm border-b-4 border-black/10 active:border-b-0 active:translate-y-1"
+        >
+          {copied ? <Check size={14}/> : <Copy size={14}/>}
+          {copied ? "COPIED!" : (label || "COPY")}
+        </button>
+      );
+    };
+
+    const SectionHeader = ({ icon: Icon, title, color }) => (
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-inner" style={{ backgroundColor: color }}>
+          <Icon size={20} className="text-slate-700" />
+        </div>
+        <h2 className="text-sm font-black text-slate-800 tracking-widest uppercase">{title}</h2>
+      </div>
+    );
+
+    // --- MAIN APP ---
+    const App = () => {
+      const [prompt, setPrompt] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [result, setResult] = useState(null);
+      const [tags, setTags] = useState(() => {
+        const s = localStorage.getItem('insta-tags-v3');
+        return s ? JSON.parse(s) : DEFAULT_TAGS.map(t => ({ id: Math.random().toString(), text: t, active: false }));
+      });
+      const [hours, setHours] = useState({ open: "12:00 PM", close: "6:30 PM" });
+
+      useEffect(() => { localStorage.setItem('insta-tags-v3', JSON.stringify(tags)); }, [tags]);
+
+      const handleGenerate = async () => {
+        if (!prompt.trim()) return;
+        setLoading(true);
+        try {
+          const res = await generateInstaPost(prompt);
+          setResult(res);
+        } catch (e) { alert("AI Connection Error"); }
+        finally { setLoading(false); }
+      };
+
+      const toggleTag = (id) => setTags(tags.map(t => t.id === id ? { ...t, active: !t.active } : t));
+      const activeTagsStr = tags.filter(t => t.active).map(t => `#${t.text}`).join(' ');
+      const hoursStr = `We're open from ${hours.open} to ${hours.close} today.`;
+      const finalContent = result ? `【${result.imagePhrase}】\n${result.caption}\n\n📞 ${SHOP_PHONE}\n⏰ ${hoursStr}\n\n${activeTagsStr}` : "";
+
+      return (
+        <div className="max-w-xl mx-auto px-5 py-10">
+          <header className="text-center mb-10">
+            <h1 className="text-5xl font-londrina text-slate-900 mb-1">InstaPrep</h1>
+            <p className="font-caveat text-xl text-orange-400">Professional Post Studio</p>
+          </header>
+
+          <div className="flex flex-col gap-8">
+            <section className="card-ios p-6 shadow-xl">
+              <SectionHeader icon={Languages} title="Draft Creator" color={COLORS.BABY_BLUE} />
+              <textarea 
+                value={prompt}
+                onChange={e => setPrompt(e.target.value)}
+                placeholder="投稿したい内容を日本語で..."
+                className="w-full h-32 p-4 rounded-2xl bg-white/50 border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 transition-all text-slate-700"
+              />
+              <button 
+                onClick={handleGenerate}
+                disabled={loading || !prompt}
+                className="w-full mt-4 py-4 rounded-2xl bg-[#FDD475] text-slate-800 font-black text-lg shadow-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? "Generating..." : <><Sparkles size={20}/> 文章を生成する</>}
+              </button>
+            </section>
+
+            {result && (
+              <section className="flex flex-col gap-4 animate-in slide-in-from-bottom-4">
+                <div className="card-ios p-6 border-orange-100">
+                   <p className="text-2xl font-black text-slate-800 mb-4">{result.imagePhrase}</p>
+                   <CopyButton text={result.imagePhrase} baseColor={COLORS.PEACH} />
+                </div>
+                <div className="card-ios p-6 border-blue-100">
+                   <p className="text-sm leading-relaxed text-slate-700 font-medium mb-4 whitespace-pre-wrap">{result.caption}</p>
+                   <CopyButton text={result.caption} baseColor={COLORS.BABY_BLUE} />
+                </div>
+              </section>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="card-ios p-5">
+                <SectionHeader icon={Clock} title="Hours" color={COLORS.BUTTER} />
+                <input type="text" value={hours.open} onChange={e => setHours({...hours, open: e.target.value})} className="w-full bg-white/50 p-2 rounded-lg text-xs font-bold mb-2 outline-none" />
+                <CopyButton text={hoursStr} baseColor={COLORS.BUTTER} className="w-full" label="COPY HOURS" />
+              </div>
+              <div className="card-ios p-5">
+                <SectionHeader icon={Phone} title="Contact" color={COLORS.PEACH} />
+                <div className="text-sm font-black text-slate-800 p-2 bg-white/50 rounded-lg mb-2">{SHOP_PHONE}</div>
+                <CopyButton text={SHOP_PHONE} baseColor={COLORS.PEACH} className="w-full" />
+              </div>
+            </div>
+
+            <section className="card-ios p-6">
+              <SectionHeader icon={Hash} title="Hashtags" color={COLORS.BABY_BLUE} />
+              <div className="flex flex-wrap gap-2 mb-4">
+                {tags.map(t => (
+                  <button key={t.id} onClick={() => toggleTag(t.id)} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${t.active ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    #{t.text}
+                  </button>
+                ))}
+              </div>
+              <CopyButton text={activeTagsStr} baseColor={COLORS.BABY_BLUE} label="COPY TAGS" className="w-full" />
+            </section>
+
+            <section className="card-ios p-6 bg-slate-900 text-white border-none shadow-2xl">
+              <h2 className="text-lg font-black flex items-center gap-2 mb-4"><Instagram size={20}/> PREVIEW</h2>
+              <div className="bg-slate-800 rounded-xl p-4 text-[10px] font-mono leading-relaxed text-slate-300 min-h-[100px] whitespace-pre-wrap mb-4">
+                {finalContent || "生成後にここにプレビューが表示されます"}
+              </div>
+              {result && (
+                <button onClick={() => { navigator.clipboard.writeText(finalContent); alert("Copied!"); }} className="w-full py-5 rounded-2xl bg-[#FDD475] text-slate-900 font-black text-sm uppercase shadow-xl active:scale-95">
+                  Copy Everything
+                </button>
+              )}
+            </section>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
 </body>
 </html>
