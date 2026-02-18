@@ -46,6 +46,7 @@
       box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
       display: flex;
       flex-direction: column;
+      height: 100%;
     }
     .font-londrina { font-family: 'Londrina Shadow', cursive; }
     .font-caveat { font-family: 'Caveat', cursive; }
@@ -132,6 +133,7 @@
         if (!prompt.trim()) return;
         setLoading(true);
         try {
+          // NOTE: process.env.API_KEY must be available in the environment
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -162,7 +164,7 @@
           setResult(data);
         } catch (e) {
           console.error("Generate Error:", e);
-          alert("AI生成に失敗しました。もう一度お試しください。");
+          alert("AI生成に失敗しました。APIキーが正しく設定されているか、プロンプトを確認してください。");
         } finally {
           setLoading(false);
         }
@@ -223,9 +225,9 @@
             {result && (
               <div className="space-y-6 animate-in">
                 <div className="card-ios p-8 border-orange-100">
-                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block mb-3">Main Message (Image)</span>
+                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block mb-3">Main Message (Image Overlay)</span>
                    <p className="text-3xl font-black text-slate-800 leading-tight mb-6 italic">"{result.imagePhrase}"</p>
-                   <div className="flex justify-between items-center">
+                   <div className="flex justify-between items-center pt-4 border-t border-slate-100/50">
                       <span className="text-xs text-slate-400 italic font-medium">訳: {result.imagePhrase_jp}</span>
                       <CopyButton text={result.imagePhrase} baseColor={COLORS.PEACH} />
                    </div>
@@ -233,11 +235,14 @@
                 <div className="card-ios p-8 border-blue-100">
                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-3">Post Caption</span>
                    <p className="text-base leading-relaxed text-slate-700 font-medium mb-6 whitespace-pre-wrap">{result.caption}</p>
-                   <div className="flex flex-col gap-4 pt-6 border-t border-slate-100">
-                      <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-                        <span className="font-black text-[9px] uppercase tracking-wider block mb-1">Japanese Translation:</span>
-                        {result.caption_jp}
-                      </p>
+                   
+                   <div className="flex flex-col gap-5 pt-6 border-t border-slate-100">
+                      <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                        <span className="font-black text-[9px] text-slate-400 uppercase tracking-wider block mb-2">Japanese Translation:</span>
+                        <div className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                          {result.caption_jp}
+                        </div>
+                      </div>
                       <div className="flex justify-end">
                         <CopyButton text={result.caption} baseColor={COLORS.BABY_BLUE} label="COPY CAPTION" />
                       </div>
@@ -247,50 +252,50 @@
             )}
 
             {/* Business Info Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="card-ios p-6 min-h-[240px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-stretch">
+              <div className="card-ios p-6">
                 <div className="flex-grow">
                   <SectionHeader icon={Clock} title="Business Hours" color={COLORS.BUTTER} />
                   <div className="flex gap-2 mb-4">
                      <input 
                        type="text" value={hours.open} 
                        onChange={e => setHours({...hours, open: e.target.value})} 
-                       className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100" 
+                       className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100 outline-none focus:border-yellow-200" 
                        placeholder="Open"
                      />
                      <input 
                        type="text" value={hours.close} 
                        onChange={e => setHours({...hours, close: e.target.value})} 
-                       className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100" 
+                       className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100 outline-none focus:border-yellow-200" 
                        placeholder="Close"
                      />
                   </div>
                   <p className="text-[9px] text-slate-400 font-bold uppercase mb-2">Live Preview:</p>
-                  <div className="text-[10px] bg-slate-50 p-2 rounded-lg mb-4 text-slate-500 truncate italic">⏰ Open: {hours.open} - {hours.close}</div>
+                  <div className="text-[10px] bg-white/40 p-3 rounded-lg mb-6 text-slate-500 font-medium italic border border-slate-50">⏰ Today: {hours.open} - {hours.close}</div>
                 </div>
-                <CopyButton text={`We're open from ${hours.open} to ${hours.close} today.`} baseColor={COLORS.BUTTER} label="COPY TEXT" className="w-full mt-auto" />
+                <CopyButton text={`We're open from ${hours.open} to ${hours.close} today.`} baseColor={COLORS.BUTTER} label="COPY HOURS" className="w-full" />
               </div>
 
-              <div className="card-ios p-6 min-h-[240px]">
+              <div className="card-ios p-6">
                 <div className="flex-grow">
-                  <SectionHeader icon={Smartphone} title="Phone number" color={COLORS.PEACH} />
+                  <SectionHeader icon={Phone} title="Phone number" color={COLORS.PEACH} />
                   <div className="mb-4">
                     <p className="text-[9px] text-slate-400 font-bold uppercase mb-2 text-center">Current Contact</p>
                     <input 
                       type="text" value={phone} 
                       onChange={e => setPhone(e.target.value)} 
-                      className="w-full bg-white/50 p-3 rounded-xl text-lg font-black text-slate-800 border border-slate-100 text-center" 
+                      className="w-full bg-white/50 p-3 rounded-xl text-lg font-black text-slate-800 border border-slate-100 text-center outline-none focus:border-orange-200" 
                     />
                   </div>
                 </div>
-                <CopyButton text={phone} baseColor={COLORS.PEACH} label="COPY PHONE" className="w-full mt-auto" />
+                <CopyButton text={phone} baseColor={COLORS.PEACH} label="COPY PHONE" className="w-full" />
               </div>
             </div>
 
             {/* Hashtags */}
             <section className="card-ios p-8">
               <SectionHeader icon={Hash} title="Hashtags" color={COLORS.BABY_BLUE} />
-              <div className="flex flex-wrap gap-2.5 mb-8 max-h-40 overflow-y-auto no-scrollbar p-1">
+              <div className="flex flex-wrap gap-2.5 mb-8 max-h-48 overflow-y-auto no-scrollbar p-1">
                 {tags.map(t => (
                   <div key={t.id} className="group relative">
                     <button 
@@ -323,20 +328,20 @@
             </section>
 
             {/* Final Preview Container */}
-            <section className="card-ios p-8 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden min-h-[400px] flex flex-col">
+            <section className="card-ios p-8 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden min-h-[450px] flex flex-col">
               <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
                 <Instagram size={150} />
               </div>
               <h2 className="text-xl font-black flex items-center gap-3 mb-6 relative z-10">
                 <Instagram size={24} className="text-pink-500" /> INSTAGRAM PREVIEW
               </h2>
-              <div className="flex-grow bg-slate-800/60 backdrop-blur-md rounded-[24px] p-6 text-[12px] font-mono leading-relaxed text-slate-300 mb-8 border border-white/5 relative z-10 whitespace-pre-wrap">
+              <div className="flex-grow bg-slate-800/60 backdrop-blur-md rounded-[24px] p-6 text-[12px] font-mono leading-relaxed text-slate-300 mb-8 border border-white/5 relative z-10 whitespace-pre-wrap overflow-y-auto max-h-[400px]">
                 {finalContent}
               </div>
               <button 
                 onClick={() => {
                   navigator.clipboard.writeText(finalContent);
-                  alert("全ての投稿内容をコピーしました！");
+                  alert("全ての投稿内容をクリップボードにコピーしました！");
                 }}
                 disabled={!result && prompt === ""}
                 className="w-full py-6 rounded-[24px] bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 text-slate-900 font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 transition-transform relative z-10 disabled:opacity-30"
