@@ -5,14 +5,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>InstaPrep Studio | Professional Post Support</title>
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#F8F9FA">
-  <link rel="manifest" href="manifest.json">
+  
+  <!-- デバッグ用：エラーが発生した時に画面に表示する -->
+  <script>
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      const errorDiv = document.createElement('div');
+      errorDiv.style.position = 'fixed';
+      errorDiv.style.top = '0';
+      errorDiv.style.left = '0';
+      errorDiv.style.width = '100%';
+      errorDiv.style.padding = '20px';
+      errorDiv.style.backgroundColor = 'rgba(255,0,0,0.9)';
+      errorDiv.style.color = 'white';
+      errorDiv.style.zIndex = '9999';
+      errorDiv.style.fontSize = '12px';
+      errorDiv.style.wordBreak = 'break-all';
+      errorDiv.innerHTML = '<strong>JS Error:</strong> ' + msg + '<br>Line: ' + lineNo + ' at ' + url;
+      document.body.appendChild(errorDiv);
+      return false;
+    };
+  </script>
+
+  <!-- Babel: .tsxファイルをブラウザで動かすための変換器 -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@700;800&family=Caveat:wght@400;700&family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Londrina+Shadow&family=Bebas+Neue&family=Outfit:wght@800&family=Playfair+Display:ital,wght@1,700&family=Damion&display=swap" rel="stylesheet">
+  
   <style>
     :root {
       --baby-blue: #C1E1DC;
@@ -20,7 +41,6 @@
       --butter: #FFEB94;
       --butterscotch: #FDD475;
     }
-
     body {
       font-family: 'Inter', 'Noto+Sans JP', sans-serif;
       background-color: #F8F9FA;
@@ -30,111 +50,46 @@
         radial-gradient(at 0% 100%, rgba(255, 235, 148, 0.4) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(253, 212, 117, 0.4) 0px, transparent 50%);
       background-attachment: fixed;
-      color: #2D3436;
-      -webkit-tap-highlight-color: transparent;
-      overflow-x: hidden;
       min-height: 100vh;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
+      margin: 0;
     }
-
-    .font-alegreya { font-family: 'Alegreya Sans SC', sans-serif; }
-    .font-caveat { font-family: 'Caveat', cursive; }
-    .font-londrina-shadow { font-family: 'Londrina Shadow', cursive; }
-    
-    .font-modern { font-family: 'Outfit', sans-serif; }
-    .font-strong { font-family: 'Bebas Neue', cursive; }
-    .font-serif { font-family: 'Playfair Display', serif; }
-    .font-casual { font-family: 'Damion', cursive; }
-
-    .glass-nav {
-      background: rgba(255, 255, 255, 0.7);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    #root:empty::before {
+      content: "Loading Application...";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Bebas Neue', cursive;
+      font-size: 2rem;
+      color: #FDD475;
+      animation: pulse 1.5s infinite;
     }
-
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--baby-blue); border-radius: 10px; }
-
-    .card-ios {
-      background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(15px);
-      -webkit-backdrop-filter: blur(15px);
-      border-radius: 28px;
-      box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.01);
-      border: 1px solid rgba(255, 255, 255, 0.8);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .card-ios:active { transform: scale(0.995); }
-    input, textarea { font-size: 16px !important; }
-    .btn-bounce:active { transform: scale(0.96); }
-
-    @keyframes subtle-float {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(-5px); }
-      100% { transform: translateY(0px); }
-    }
-    .float-anim { animation: subtle-float 4s ease-in-out infinite; }
-    
-    .collapsible-content {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.4s ease-out, opacity 0.3s ease-out;
-      opacity: 0;
-    }
-    .collapsible-content.expanded {
-      max-height: 1000px;
-      opacity: 1;
-    }
-
-    input[type=range] {
-      -webkit-appearance: none;
-      width: 100%;
-      background: transparent;
-    }
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      height: 20px;
-      width: 20px;
-      border-radius: 50%;
-      background: white;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      margin-top: -8px;
-    }
-    input[type=range]::-webkit-slider-runnable-track {
-      width: 100%;
-      height: 4px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.3);
-      border-radius: 2px;
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   </style>
-  <script>
-    // GitHub Pagesなどの静的環境で process.env 参照によるクラッシュを防ぐための定義
-    window.process = {
-      env: {
-        API_KEY: ""
-      }
-    };
-  </script>
-<script type="importmap">
+
+  <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.574.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react": "https://esm.sh/react@19.2.4",
+    "react-dom": "https://esm.sh/react-dom@19.2.4",
+    "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.474.0?external=react",
+    "@google/genai": "https://esm.sh/@google/genai@1.41.0",
     "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "@google/genai": "https://esm.sh/@google/genai@^1.41.0"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
   }
 }
 </script>
 </head>
 <body>
   <div id="root"></div>
-  <script type="module" src="./index.tsx"></script>
+  
+  <!-- type="text/babel" と data-type="module" を指定することでBabelが処理します -->
+  <script type="text/babel" data-type="module" src="./index.tsx"></script>
+  
+  <script>
+    // GitHub環境での process.env 参照エラー防止
+    window.process = { env: { API_KEY: "" } };
+  </script>
 </body>
 </html>

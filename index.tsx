@@ -3,25 +3,21 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
+console.log('InstaPrep Studio: Starting render...');
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
+  console.error("Critical: Could not find root element");
+} else {
+  try {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+    console.log('InstaPrep Studio: Render successful');
+  } catch (err) {
+    console.error('Render error:', err);
+  }
 }
-
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-
-// sw.jsが存在しない環境での404エラーを防ぐため、一旦コメントアウトまたは削除します
-/*
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => {
-      console.log('ServiceWorker registration failed: ', err);
-    });
-  });
-}
-*/
