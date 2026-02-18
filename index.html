@@ -68,6 +68,11 @@
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
+    /**
+     * Prevents ReferenceError in browser environments like GitHub Pages
+     */
+    window.process = window.process || { env: {} };
+
     import React, { useState, useEffect, useMemo } from 'react';
     import ReactDOM from 'react-dom/client';
     import { 
@@ -124,26 +129,29 @@
       const [hours, setHours] = useState({ open: "12:00 PM", close: "6:30 PM" });
       const [hasKey, setHasKey] = useState(true);
       const [tags, setTags] = useState(() => {
-        const saved = localStorage.getItem('insta-tags-v12');
+        const saved = localStorage.getItem('insta-tags-v13');
         return saved ? JSON.parse(saved) : DEFAULT_TAGS.map(t => ({ id: Math.random().toString(), text: t, active: true }));
       });
 
       useEffect(() => {
         const checkKey = async () => {
-          if (window.aistudio && !process.env.API_KEY) {
-            const selected = await window.aistudio.hasSelectedApiKey();
-            setHasKey(selected);
+          if (window.aistudio) {
+            // Priority 1: Check if API_KEY exists in env
+            // Priority 2: Check if user has selected a key in aistudio environment
+            const envKey = process.env.API_KEY;
+            const studioKeySelected = await window.aistudio.hasSelectedApiKey();
+            setHasKey(!!envKey || studioKeySelected);
           }
         };
         checkKey();
       }, []);
 
-      useEffect(() => { localStorage.setItem('insta-tags-v12', JSON.stringify(tags)); }, [tags]);
+      useEffect(() => { localStorage.setItem('insta-tags-v13', JSON.stringify(tags)); }, [tags]);
 
       const handleOpenKey = async () => {
         if (window.aistudio) {
           await window.aistudio.openSelectKey();
-          setHasKey(true); // 選択後は成功とみなして進む
+          setHasKey(true); 
         }
       };
 
@@ -151,17 +159,17 @@
         if (!prompt.trim()) return;
         setLoading(true);
         try {
-          // 毎回新しいインスタンスを作成して最新のキーを使用
+          // Always create fresh instance to ensure correct API key is used
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `以下の内容を元に、魅力的なInstagram投稿を作成してください：\n${prompt}`,
+            contents: `以下のメッセージを元に、魅力的なInstagram投稿を作成してください：\n${prompt}`,
             config: {
               systemInstruction: `あなたはプロのInstagramマーケターです。
-              日本語の入力を元に、以下の要素を含むJSONを生成してください：
+              日本語の入力を元に、以下の要素を含むJSONを正確に生成してください：
               1. caption: 英語の投稿本文。
-              2. caption_jp: 投稿本文の丁寧な日本語訳。
-              3. imagePhrase: 写真の上に載せるキャッチーな短文（3-5単語）。
+              2. caption_jp: 投稿本文の丁寧で魅力的な日本語全訳（すべて表示するため省略しないでください）。
+              3. imagePhrase: 写真の上に載せるキャッチーな短い英語フレーズ（3-5単語）。
               4. imagePhrase_jp: そのフレーズの日本語訳。`,
               responseMimeType: "application/json",
               responseSchema: {
@@ -179,11 +187,13 @@
           
           setResult(JSON.parse(response.text));
         } catch (e) {
-          console.error("AI Generation Error:", e);
-          if (e.message?.includes("Requested entity was not found")) {
+          console.error("AI Error:", e);
+          const errorMsg = e.message || "";
+          if (errorMsg.includes("Requested entity was not found") || errorMsg.includes("API key not valid")) {
             setHasKey(false);
+          } else {
+            alert("文章の生成に失敗しました。プロンプトの内容を変更するか、しばらくしてから再度お試しください。");
           }
-          alert("文章の生成に失敗しました。APIキーの設定を確認するか、しばらく時間をおいてから再度お試しください。");
         } finally {
           setLoading(false);
         }
@@ -205,23 +215,24 @@
         return content;
       }, [result, phone, hours, tags]);
 
-      // キー未設定時の画面
       if (!hasKey) {
         return (
           <div className="min-h-screen flex items-center justify-center p-6 text-center">
-            <div className="card-ios p-10 max-w-sm w-full border-orange-200">
-              <AlertCircle size={64} className="text-orange-400 mx-auto mb-6" />
+            <div className="card-ios p-10 max-w-sm w-full border-orange-200 shadow-2xl animate-in">
+              <div className="w-20 h-20 bg-orange-100 rounded-[30px] flex items-center justify-center mx-auto mb-6">
+                <AlertCircle size={40} className="text-orange-500" />
+              </div>
               <h2 className="text-2xl font-black text-slate-800 mb-4 tracking-tight">APIキーが必要です</h2>
               <p className="text-sm text-slate-500 mb-8 leading-relaxed font-medium">
-                このアプリを利用するには、Google AI StudioのAPIキーをセットアップしてください。
+                文章を生成するには、Google AI StudioのAPIキーをセットアップしてください。
                 <br />
-                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 underline text-xs mt-2 inline-block">料金プランについて詳しく見る</a>
+                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 underline text-[10px] mt-3 inline-block uppercase font-black tracking-widest">Billing Info</a>
               </p>
               <button 
                 onClick={handleOpenKey}
-                className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-sm uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
+                className="w-full py-5 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
               >
-                <Settings size={20} /> キーを選択する
+                <Settings size={18} /> SELECT API KEY
               </button>
             </div>
           </div>
@@ -236,13 +247,13 @@
           </header>
 
           <div className="flex flex-col gap-10">
-            {/* Input Section */}
+            {/* Draft Input */}
             <section className="card-ios p-8 shadow-2xl">
               <SectionHeader icon={Languages} title="Draft Input" color={COLORS.BABY_BLUE} />
               <textarea 
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
-                placeholder="日本語で書きたい内容を入力してください..."
+                placeholder="日本語で内容を入力（例：今日のおすすめコーヒーについて...）"
                 className="w-full h-36 p-5 rounded-[24px] bg-white/40 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-100/50 transition-all text-slate-700 font-medium text-base resize-none"
               />
               <button 
@@ -250,7 +261,13 @@
                 disabled={loading || !prompt}
                 className="w-full mt-6 py-5 rounded-[24px] bg-[#FDD475] text-slate-800 font-black text-xl shadow-lg shadow-yellow-200/50 active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
               >
-                {loading ? "GENERATING..." : <><Sparkles size={24} className="text-orange-500" /> 文章を生成する</>}
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-slate-800 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-slate-800 rounded-full animate-bounce [animation-delay:0.2s]" />
+                    <div className="w-2 h-2 bg-slate-800 rounded-full animate-bounce [animation-delay:0.4s]" />
+                  </div>
+                ) : <><Sparkles size={24} className="text-orange-500" /> 文章を生成する</>}
               </button>
             </section>
 
@@ -258,7 +275,7 @@
             {result && (
               <div className="space-y-6 animate-in">
                 <div className="card-ios p-8 border-orange-100">
-                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block mb-3">Image Text (Overlay)</span>
+                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest block mb-3">Image Overlay Text</span>
                    <p className="text-3xl font-black text-slate-800 leading-tight mb-6 italic">"{result.imagePhrase}"</p>
                    <div className="flex justify-between items-center pt-4 border-t border-slate-100/50">
                       <span className="text-xs text-slate-400 italic font-medium">訳: {result.imagePhrase_jp}</span>
@@ -266,7 +283,7 @@
                    </div>
                 </div>
                 <div className="card-ios p-8 border-blue-100">
-                   <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-3">Post Caption</span>
+                   <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-3">English Caption</span>
                    <p className="text-base leading-relaxed text-slate-700 font-medium mb-6 whitespace-pre-wrap">{result.caption}</p>
                    
                    <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 mb-6">
@@ -282,28 +299,27 @@
               </div>
             )}
 
-            {/* Business Info Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Business Hours Card */}
-              <div className="card-ios p-6 flex flex-col h-full">
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-stretch">
+              <div className="card-ios p-6 flex flex-col">
                 <div className="flex-grow">
                   <SectionHeader icon={Clock} title="Business Hours" color={COLORS.BUTTER} />
                   <div className="flex gap-2 mb-4">
-                     <input type="text" value={hours.open} onChange={e => setHours({...hours, open: e.target.value})} className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100 outline-none" />
-                     <input type="text" value={hours.close} onChange={e => setHours({...hours, close: e.target.value})} className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100 outline-none" />
+                     <input type="text" value={hours.open} onChange={e => setHours({...hours, open: e.target.value})} className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100 outline-none focus:border-yellow-200" />
+                     <input type="text" value={hours.close} onChange={e => setHours({...hours, close: e.target.value})} className="w-1/2 bg-white/50 p-3 rounded-xl text-xs font-bold border border-slate-100 outline-none focus:border-yellow-200" />
                   </div>
                 </div>
                 <div className="mt-auto">
-                   <CopyButton text={`We're open from ${hours.open} to ${hours.close} today.`} baseColor={COLORS.BUTTER} label="COPY HOURS" className="w-full" />
+                  <CopyButton text={`We're open from ${hours.open} to ${hours.close} today.`} baseColor={COLORS.BUTTER} label="COPY HOURS" className="w-full" />
                 </div>
               </div>
 
-              {/* Phone Number Card */}
-              <div className="card-ios p-6 flex flex-col h-full">
+              <div className="card-ios p-6 flex flex-col">
                 <div className="flex-grow">
                   <SectionHeader icon={Phone} title="Phone number" color={COLORS.PEACH} />
                   <div className="mb-4">
-                    <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/50 p-3 rounded-xl text-lg font-black text-slate-800 border border-slate-100 text-center outline-none" />
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mb-2 text-center tracking-widest">Store Contact</p>
+                    <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/50 p-3 rounded-xl text-lg font-black text-slate-800 border border-slate-100 text-center outline-none focus:border-orange-200" />
                   </div>
                 </div>
                 <div className="mt-auto">
@@ -322,29 +338,32 @@
                     #{t.text}
                   </button>
                 ))}
-                <button onClick={() => {const text = prompt("タグを追加:"); if(text) setTags([...tags, {id: Math.random().toString(), text, active: true}])}}
-                  className="px-4 py-2 rounded-2xl border-2 border-dashed border-slate-200 text-slate-300 font-bold text-[11px] flex items-center gap-1">
-                  <Plus size={14} /> ADD
+                <button onClick={() => {const text = prompt("タグ名を入力:"); if(text) setTags([...tags, {id: Math.random().toString(), text, active: true}])}}
+                  className="px-4 py-2 rounded-2xl border-2 border-dashed border-slate-200 text-slate-300 font-bold text-[11px] flex items-center gap-1 active:scale-95 transition-transform">
+                  <Plus size={14} /> ADD NEW
                 </button>
               </div>
-              <CopyButton text={tags.filter(t => t.active).map(t => `#${t.text}`).join(' ')} baseColor={COLORS.BABY_BLUE} label="COPY TAGS" className="w-full" />
+              <CopyButton text={tags.filter(t => t.active).map(t => `#${t.text}`).join(' ')} baseColor={COLORS.BABY_BLUE} label="COPY ALL TAGS" className="w-full" />
             </section>
 
-            {/* Preview */}
+            {/* Preview Section */}
             <section className="card-ios p-8 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden min-h-[450px]">
               <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none"><Instagram size={150} /></div>
-              <h2 className="text-xl font-black flex items-center gap-3 mb-6 relative z-10"><Instagram size={24} className="text-pink-500" /> INSTAGRAM PREVIEW</h2>
+              <h2 className="text-xl font-black flex items-center gap-3 mb-6 relative z-10"><Instagram size={24} className="text-pink-500" /> POST PREVIEW</h2>
               <div className="flex-grow bg-slate-800/60 backdrop-blur-md rounded-[24px] p-6 text-[12px] font-mono leading-relaxed text-slate-300 mb-8 border border-white/5 relative z-10 whitespace-pre-wrap overflow-y-auto max-h-[350px]">
                 {finalContent}
               </div>
-              <button onClick={() => {navigator.clipboard.writeText(finalContent); alert("コピーしました！")}} className="w-full py-6 rounded-[24px] bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 text-slate-900 font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 transition-transform relative z-10">
-                Copy Everything
+              <button 
+                onClick={() => {navigator.clipboard.writeText(finalContent); alert("コピーしました！ Instagramに貼り付けてください。")}} 
+                className="w-full py-6 rounded-[24px] bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 text-slate-900 font-black text-base uppercase tracking-[0.2em] shadow-2xl active:scale-95 transition-transform relative z-10"
+              >
+                Copy Full Content
               </button>
             </section>
           </div>
 
           <footer className="mt-24 text-center">
-            <p className="opacity-20 text-[10px] font-black uppercase tracking-[0.4em]">© 2025 InstaPrep Studio • Crafting Digital Stories</p>
+            <p className="opacity-20 text-[10px] font-black uppercase tracking-[0.4em]">© 2025 InstaPrep Studio • Vernorn BC</p>
           </footer>
         </div>
       );
