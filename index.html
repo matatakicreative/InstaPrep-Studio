@@ -15,17 +15,16 @@
   <!-- React & Babel for Browser Rendering -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.2.4",
-    "react-dom": "https://esm.sh/react-dom@19.2.4",
-    "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
-    "lucide-react": "https://esm.sh/lucide-react@0.474.0?external=react",
-    "@google/genai": "https://esm.sh/@google/genai@1.41.0",
-    "react/": "https://esm.sh/react@^19.2.4/"
+  {
+    "imports": {
+      "react": "https://esm.sh/react@19.2.4",
+      "react-dom": "https://esm.sh/react-dom@19.2.4",
+      "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
+      "lucide-react": "https://esm.sh/lucide-react@0.474.0?external=react",
+      "@google/genai": "https://esm.sh/@google/genai@1.41.0"
+    }
   }
-}
-</script>
+  </script>
 
   <style>
     body {
@@ -68,8 +67,12 @@
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    // GitHub Pages等のブラウザ環境でprocess.envが未定義なことによるエラーを回避
-    window.process = window.process || { env: {} };
+    /**
+     * GitHub Pages 等の静的環境で process.env.API_KEY へのアクセスを安全にするための初期化
+     */
+    if (typeof window.process === 'undefined') {
+      window.process = { env: {} };
+    }
 
     import React, { useState, useEffect, useMemo } from 'react';
     import ReactDOM from 'react-dom/client';
@@ -126,27 +129,27 @@
       const [phone, setPhone] = useState("778-475-6191");
       const [hours, setHours] = useState({ open: "12:00 PM", close: "6:30 PM" });
       const [tags, setTags] = useState(() => {
-        const saved = localStorage.getItem('insta-tags-v10');
+        const saved = localStorage.getItem('insta-tags-v11');
         return saved ? JSON.parse(saved) : DEFAULT_TAGS.map(t => ({ id: Math.random().toString(), text: t, active: true }));
       });
 
-      useEffect(() => { localStorage.setItem('insta-tags-v10', JSON.stringify(tags)); }, [tags]);
+      useEffect(() => { localStorage.setItem('insta-tags-v11', JSON.stringify(tags)); }, [tags]);
 
       const handleGenerate = async () => {
         if (!prompt.trim()) return;
         setLoading(true);
         try {
-          // ボタン押下時にインスタンスを作成し、最新のAPIキーを参照
+          // ボタンクリック時にインスタンスを作成し、その時点のAPIキーを取得
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `以下の日本語を元に、Instagram投稿を英語で作成してください：\n${prompt}`,
+            contents: `以下の日本語メッセージを魅力的なInstagram投稿用の英語に変換してください：\n${prompt}`,
             config: {
               systemInstruction: `あなたはプロのInstagramマーケターです。
-              日本語入力を元に、以下の要素を含むJSONを生成してください：
+              日本語の入力を元に、以下の4つの要素を含むJSONを生成してください。
               1. caption: 英語の投稿本文。
-              2. caption_jp: 投稿本文の丁寧な日本語全訳。
-              3. imagePhrase: 写真内に入れる3-5単語の短い英語フレーズ。
+              2. caption_jp: 投稿本文の丁寧な日本語全訳（全文を表示するため、途中で切らずにすべて翻訳してください）。
+              3. imagePhrase: 写真内に入れる3〜5単語のキャッチーな英語フレーズ。
               4. imagePhrase_jp: そのフレーズの日本語訳。`,
               responseMimeType: "application/json",
               responseSchema: {
@@ -165,7 +168,7 @@
           setResult(JSON.parse(response.text));
         } catch (e) {
           console.error("AI Error:", e);
-          alert("文章の生成に失敗しました。GitHub Pagesの設定でAPIキー(API_KEY)が登録されているか確認してください。");
+          alert("文章の生成に失敗しました。GitHubの設定画面で API_KEY が正しく設定されているか、プロンプトに不適切な表現がないか確認してください。");
         } finally {
           setLoading(false);
         }
@@ -181,7 +184,7 @@
           content += `【 ${result.imagePhrase} 】\n\n`;
           content += `${result.caption}\n\n`;
         } else {
-          content += `[ 文章生成後にここに詳細が表示されます ]\n\n`;
+          content += `[ AIが生成した文章がここに表示されます ]\n\n`;
         }
         content += `${phoneStr}\n${hoursStr}\n\n${activeTagsStr}`;
         return content;
@@ -201,7 +204,7 @@
               <textarea 
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
-                placeholder="今日のおすすめやメッセージを日本語で入力..."
+                placeholder="おすすめ商品やメッセージを日本語で入力..."
                 className="w-full h-36 p-5 rounded-[24px] bg-white/40 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-100/50 transition-all text-slate-700 font-medium text-base resize-none"
               />
               <button 
@@ -224,13 +227,13 @@
                       <CopyButton text={result.imagePhrase} baseColor={COLORS.PEACH} />
                    </div>
                 </div>
-                <div className="card-ios p-8 border-blue-100 h-auto">
+                <div className="card-ios p-8 border-blue-100 h-auto overflow-visible">
                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest block mb-3">Post Caption</span>
                    <p className="text-base leading-relaxed text-slate-700 font-medium mb-6 whitespace-pre-wrap">{result.caption}</p>
                    
                    <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 mb-6">
                       <span className="font-black text-[9px] text-slate-400 uppercase tracking-wider block mb-2 underline decoration-blue-200 underline-offset-4 tracking-widest">Japanese Translation:</span>
-                      <div className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap h-auto">
+                      <div className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap h-auto min-h-[1em]">
                         {result.caption_jp}
                       </div>
                    </div>
@@ -243,7 +246,7 @@
 
             {/* Business Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-stretch">
-              <div className="card-ios p-6 flex flex-col h-full">
+              <div className="card-ios p-6 flex flex-col">
                 <div className="flex-grow">
                   <SectionHeader icon={Clock} title="Business Hours" color={COLORS.BUTTER} />
                   <div className="flex gap-2 mb-4">
@@ -257,11 +260,11 @@
                 </div>
               </div>
 
-              <div className="card-ios p-6 flex flex-col h-full">
+              <div className="card-ios p-6 flex flex-col">
                 <div className="flex-grow">
                   <SectionHeader icon={Phone} title="Phone number" color={COLORS.PEACH} />
                   <div className="mb-4">
-                    <p className="text-[9px] text-slate-400 font-bold uppercase mb-2 text-center tracking-widest">Store Phone</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mb-2 text-center tracking-widest">Store Contact</p>
                     <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/50 p-3 rounded-xl text-lg font-black text-slate-800 border border-slate-100 text-center outline-none" />
                   </div>
                 </div>
@@ -296,7 +299,7 @@
               <div className="flex-grow bg-slate-800/60 backdrop-blur-md rounded-[24px] p-6 text-[12px] font-mono leading-relaxed text-slate-300 mb-8 border border-white/5 relative z-10 whitespace-pre-wrap overflow-y-auto max-h-[350px]">
                 {finalContent}
               </div>
-              <button onClick={() => {navigator.clipboard.writeText(finalContent); alert("コピー完了！")}} className="w-full py-6 rounded-[24px] bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 text-slate-900 font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 transition-transform relative z-10">
+              <button onClick={() => {navigator.clipboard.writeText(finalContent); alert("投稿内容をコピーしました！")}} className="w-full py-6 rounded-[24px] bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 text-slate-900 font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 transition-transform relative z-10">
                 Copy Everything
               </button>
             </section>
