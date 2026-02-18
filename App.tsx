@@ -16,10 +16,10 @@ import {
   ChevronUp,
   Instagram
 } from 'lucide-react';
-import { COLORS, DEFAULT_HASHTAGS, PHONE_NUMBER } from './constants';
-import { Hashtag, GeneratedContent } from './types';
-import { translateAndGenerateCaption } from './services/geminiService';
-import CopyButton from './components/CopyButton';
+import { COLORS, DEFAULT_HASHTAGS, PHONE_NUMBER } from './constants.tsx';
+import { Hashtag, GeneratedContent } from './types.ts';
+import { translateAndGenerateCaption } from './services/geminiService.ts';
+import CopyButton from './components/CopyButton.tsx';
 
 const SectionHeader = ({ icon: Icon, title, color }: { icon: any, title: string, color: string }) => (
   <div className="flex items-center gap-3 mb-4 px-1">
@@ -129,7 +129,6 @@ ${selectedTagsString}
 
       <main className="w-full max-w-2xl px-5 py-8 flex flex-col gap-10">
         
-        {/* Main AI Generator Card */}
         <section className="card-ios p-7 sm:p-9 flex flex-col gap-7 relative overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-48 h-48 bg-[#FDD475] opacity-[0.15] rounded-full blur-3xl pointer-events-none"></div>
           
@@ -160,7 +159,6 @@ ${selectedTagsString}
           {result && (
             <div ref={resultRef} className="flex flex-col gap-8 mt-4 pt-10 border-t-2 border-dashed border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700">
               
-              {/* Image Phrase Result */}
               <div className="bg-white/90 border-2 border-[#FFCCAC]/20 rounded-[32px] p-7 flex flex-col gap-5 shadow-sm relative group">
                 <div className="absolute -top-3 left-6 px-3 py-1 bg-[#FFCCAC] text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
                    Image Text
@@ -181,7 +179,6 @@ ${selectedTagsString}
                 </div>
               </div>
 
-              {/* Caption Result */}
               <div className="bg-white/90 border-2 border-[#C1E1DC]/20 rounded-[32px] p-7 flex flex-col gap-5 shadow-sm relative group">
                 <div className="absolute -top-3 left-6 px-3 py-1 bg-[#C1E1DC] text-[#4E8D85] text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm">
                    Caption Body
@@ -208,7 +205,6 @@ ${selectedTagsString}
           )}
         </section>
 
-        {/* Info Grid (Hours & Phone) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-stretch">
           <section className="card-ios p-7 flex flex-col h-full">
             <SectionHeader icon={Clock} title="営業時間" color={COLORS.BUTTERSCOTCH} />
@@ -250,7 +246,6 @@ ${selectedTagsString}
           </section>
         </div>
 
-        {/* Tags Section */}
         <section className="card-ios overflow-hidden">
           <button 
             onClick={() => setIsHashtagsExpanded(!isHashtagsExpanded)}
@@ -298,11 +293,9 @@ ${selectedTagsString}
           </div>
         </section>
 
-        {/* Final Master Preview Section */}
         <section className="mt-8 animate-in fade-in zoom-in duration-1000">
             <div className="relative p-[2px] rounded-[48px] bg-gradient-to-br from-[#FDD475] via-[#FFCCAC] to-[#C1E1DC] shadow-2xl shadow-slate-400/30">
                 <div className="bg-slate-900 rounded-[46px] p-8 sm:p-12 flex flex-col gap-10 overflow-hidden relative">
-                    {/* Background decorative blob */}
                     <div className="absolute top-[-20%] right-[-20%] w-80 h-80 bg-[#FDD475] opacity-10 rounded-full blur-[100px] pointer-events-none"></div>
                     
                     <div className="flex items-center justify-between relative z-10">
