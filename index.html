@@ -113,6 +113,14 @@
       border-radius: 2px;
     }
   </style>
+  <script>
+    // GitHub Pagesなどの静的環境で process.env 参照によるクラッシュを防ぐための定義
+    window.process = {
+      env: {
+        API_KEY: ""
+      }
+    };
+  </script>
 <script type="importmap">
 {
   "imports": {

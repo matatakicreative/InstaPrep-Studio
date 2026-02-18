@@ -2,14 +2,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedContent } from "../types.ts";
 
-// process.env が存在しない環境でのクラッシュを防止
 const getApiKey = () => {
-  try {
+  // process オブジェクトが存在するか、env プロパティがあるかを確認
+  if (typeof process !== 'undefined' && process.env) {
     return process.env.API_KEY || "";
-  } catch (e) {
-    console.warn("API Key could not be accessed via process.env");
-    return "";
   }
+  return "";
 };
 
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
