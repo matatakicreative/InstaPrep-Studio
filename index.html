@@ -68,6 +68,9 @@
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
+    // GitHub Pages等のブラウザ環境でprocess.envが未定義なことによるエラーを回避
+    window.process = window.process || { env: {} };
+
     import React, { useState, useEffect, useMemo } from 'react';
     import ReactDOM from 'react-dom/client';
     import { 
@@ -123,27 +126,27 @@
       const [phone, setPhone] = useState("778-475-6191");
       const [hours, setHours] = useState({ open: "12:00 PM", close: "6:30 PM" });
       const [tags, setTags] = useState(() => {
-        const saved = localStorage.getItem('insta-tags-v9');
+        const saved = localStorage.getItem('insta-tags-v10');
         return saved ? JSON.parse(saved) : DEFAULT_TAGS.map(t => ({ id: Math.random().toString(), text: t, active: true }));
       });
 
-      useEffect(() => { localStorage.setItem('insta-tags-v9', JSON.stringify(tags)); }, [tags]);
+      useEffect(() => { localStorage.setItem('insta-tags-v10', JSON.stringify(tags)); }, [tags]);
 
       const handleGenerate = async () => {
         if (!prompt.trim()) return;
         setLoading(true);
         try {
-          // ガイドラインに基づき、process.env.API_KEYを直接使用
+          // ボタン押下時にインスタンスを作成し、最新のAPIキーを参照
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `以下の日本語メッセージを元に、魅力的なInstagram投稿を作成してください：\n${prompt}`,
+            contents: `以下の日本語を元に、Instagram投稿を英語で作成してください：\n${prompt}`,
             config: {
               systemInstruction: `あなたはプロのInstagramマーケターです。
-              日本語の入力を元に、以下の4要素を含むJSONを生成してください：
+              日本語入力を元に、以下の要素を含むJSONを生成してください：
               1. caption: 英語の投稿本文。
-              2. caption_jp: 投稿本文の丁寧な日本語訳。
-              3. imagePhrase: 画像内に入れるキャッチーな短文（3-5語）。
+              2. caption_jp: 投稿本文の丁寧な日本語全訳。
+              3. imagePhrase: 写真内に入れる3-5単語の短い英語フレーズ。
               4. imagePhrase_jp: そのフレーズの日本語訳。`,
               responseMimeType: "application/json",
               responseSchema: {
@@ -161,8 +164,8 @@
           
           setResult(JSON.parse(response.text));
         } catch (e) {
-          console.error("Generate Error:", e);
-          alert("文章の生成に失敗しました。GitHub Pagesの設定でAPIキーが正しく渡されているか確認してください。");
+          console.error("AI Error:", e);
+          alert("文章の生成に失敗しました。GitHub Pagesの設定でAPIキー(API_KEY)が登録されているか確認してください。");
         } finally {
           setLoading(false);
         }
@@ -178,7 +181,7 @@
           content += `【 ${result.imagePhrase} 】\n\n`;
           content += `${result.caption}\n\n`;
         } else {
-          content += `[ AIが生成した文章がここに表示されます ]\n\n`;
+          content += `[ 文章生成後にここに詳細が表示されます ]\n\n`;
         }
         content += `${phoneStr}\n${hoursStr}\n\n${activeTagsStr}`;
         return content;
@@ -198,7 +201,7 @@
               <textarea 
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
-                placeholder="日本語で投稿のヒントを入力してください..."
+                placeholder="今日のおすすめやメッセージを日本語で入力..."
                 className="w-full h-36 p-5 rounded-[24px] bg-white/40 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-100/50 transition-all text-slate-700 font-medium text-base resize-none"
               />
               <button 
@@ -226,8 +229,8 @@
                    <p className="text-base leading-relaxed text-slate-700 font-medium mb-6 whitespace-pre-wrap">{result.caption}</p>
                    
                    <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100 mb-6">
-                      <span className="font-black text-[9px] text-slate-400 uppercase tracking-wider block mb-2 underline decoration-blue-200 underline-offset-4">Japanese Translation:</span>
-                      <div className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                      <span className="font-black text-[9px] text-slate-400 uppercase tracking-wider block mb-2 underline decoration-blue-200 underline-offset-4 tracking-widest">Japanese Translation:</span>
+                      <div className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap h-auto">
                         {result.caption_jp}
                       </div>
                    </div>
@@ -240,8 +243,7 @@
 
             {/* Business Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-stretch">
-              {/* Business Hours Card */}
-              <div className="card-ios p-6 flex flex-col">
+              <div className="card-ios p-6 flex flex-col h-full">
                 <div className="flex-grow">
                   <SectionHeader icon={Clock} title="Business Hours" color={COLORS.BUTTER} />
                   <div className="flex gap-2 mb-4">
@@ -255,12 +257,11 @@
                 </div>
               </div>
 
-              {/* Phone Number Card */}
-              <div className="card-ios p-6 flex flex-col">
+              <div className="card-ios p-6 flex flex-col h-full">
                 <div className="flex-grow">
                   <SectionHeader icon={Phone} title="Phone number" color={COLORS.PEACH} />
                   <div className="mb-4">
-                    <p className="text-[9px] text-slate-400 font-bold uppercase mb-2 text-center tracking-widest">Contact Number</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mb-2 text-center tracking-widest">Store Phone</p>
                     <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-white/50 p-3 rounded-xl text-lg font-black text-slate-800 border border-slate-100 text-center outline-none" />
                   </div>
                 </div>
@@ -288,14 +289,14 @@
               <CopyButton text={tags.filter(t => t.active).map(t => `#${t.text}`).join(' ')} baseColor={COLORS.BABY_BLUE} label="COPY TAGS" className="w-full" />
             </section>
 
-            {/* Preview */}
+            {/* Final Preview */}
             <section className="card-ios p-8 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden min-h-[450px]">
               <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none"><Instagram size={150} /></div>
               <h2 className="text-xl font-black flex items-center gap-3 mb-6 relative z-10"><Instagram size={24} className="text-pink-500" /> INSTAGRAM PREVIEW</h2>
               <div className="flex-grow bg-slate-800/60 backdrop-blur-md rounded-[24px] p-6 text-[12px] font-mono leading-relaxed text-slate-300 mb-8 border border-white/5 relative z-10 whitespace-pre-wrap overflow-y-auto max-h-[350px]">
                 {finalContent}
               </div>
-              <button onClick={() => {navigator.clipboard.writeText(finalContent); alert("コピーしました！")}} className="w-full py-6 rounded-[24px] bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 text-slate-900 font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 transition-transform relative z-10">
+              <button onClick={() => {navigator.clipboard.writeText(finalContent); alert("コピー完了！")}} className="w-full py-6 rounded-[24px] bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 text-slate-900 font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 transition-transform relative z-10">
                 Copy Everything
               </button>
             </section>
