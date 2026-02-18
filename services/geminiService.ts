@@ -1,8 +1,18 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { GeneratedContent } from "../types";
+import { GeneratedContent } from "../types.ts";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// process.env が存在しない環境でのクラッシュを防止
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || "";
+  } catch (e) {
+    console.warn("API Key could not be accessed via process.env");
+    return "";
+  }
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const translateAndGenerateCaption = async (japanesePrompt: string): Promise<GeneratedContent> => {
   try {

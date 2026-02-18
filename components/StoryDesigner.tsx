@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Sliders, Check, Layers, Play, Square,
   Eye, EyeOff, Minus, Plus, Maximize2
 } from 'lucide-react';
-import { StoryElement, StoryFont, FilterState } from '../types';
+import { StoryElement, StoryFont, FilterState } from '../types.ts';
 
 interface StoryDesignerProps {
   onClose: () => void;
