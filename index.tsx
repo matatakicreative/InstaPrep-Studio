@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
-  Languages, Clock, Phone, Hash, Sparkles, Copy, Check, Instagram, 
+  Languages, Clock, Phone, Hash, Sparkles, Copy, Check, 
   Plus, Settings, AlertCircle, X, Loader2, Trash2
 } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -59,7 +59,6 @@ const App = () => {
   const [hasKey, setHasKey] = useState(true);
   const [mainCopied, setMainCopied] = useState(false);
   
-  // Hashtag registration states
   const [tagInput, setTagInput] = useState("");
   const [isAddingTag, setIsAddingTag] = useState(false);
   const tagInputRef = useRef(null);
@@ -94,7 +93,6 @@ const App = () => {
     localStorage.setItem(TAG_STORAGE_KEY, JSON.stringify(tags)); 
   }, [tags]);
 
-  // Focus input when starting addition
   useEffect(() => {
     if (isAddingTag && tagInputRef.current) {
       tagInputRef.current.focus();
@@ -184,7 +182,6 @@ const App = () => {
     setTimeout(() => setMainCopied(false), 2000);
   };
 
-  // --- REBUILT HASHTAG LOGIC (INLINE VERSION) ---
   const confirmAddTag = () => {
     const cleanText = tagInput.trim().replace(/^#+/, "");
     if (cleanText === "") {
@@ -265,15 +262,9 @@ const App = () => {
 
   return (
     <div className="max-w-xl mx-auto px-6 py-2 md:py-6">
-      <header className="relative text-center mb-6 pt-4 overflow-visible flex flex-col items-center">
-        {/* Update Logo: White watermark shifted to overlap title on the left */}
-        <div className="absolute top-[-30px] left-[-20px] sm:left-[5%] opacity-[0.25] text-white pointer-events-none transform -rotate-12 z-0">
-          <Instagram size={180} strokeWidth={1} />
-        </div>
-        <div className="relative z-10 w-full">
-          <h1 className="text-5xl sm:text-7xl font-londrina text-slate-900 mb-0 leading-[1.0] whitespace-nowrap">InstaPrep Studio</h1>
-          <p className="font-caveat text-xl sm:text-2xl text-orange-400 leading-none mt-[14px]">Create Once, Post Everywhere</p>
-        </div>
+      <header className="text-center mb-10 pt-4 flex flex-col items-center">
+        <h1 className="text-5xl sm:text-7xl font-londrina text-slate-900 mb-0 leading-[1.0] whitespace-nowrap">InstaPrep Studio</h1>
+        <p className="font-caveat text-xl sm:text-2xl text-orange-400 leading-none mt-[14px]">Create Once, Post Everywhere</p>
       </header>
 
       <div className="flex flex-col gap-6">
@@ -283,7 +274,7 @@ const App = () => {
             <textarea 
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
-              placeholder="日本語で投稿内容を自由を入力してください..."
+              placeholder="日本語で投稿内容を自由入力してください..."
               className="w-full h-32 p-4 pr-12 rounded-[20px] bg-white/40 border border-slate-100 outline-none focus:ring-4 focus:ring-blue-100/50 transition-all text-slate-700 font-medium text-base resize-none"
             />
             {prompt && (
@@ -393,7 +384,6 @@ const App = () => {
            <CopyButton text={contactBlock} baseColor={COLORS.BUTTERSCOTCH} label="COPY PHONE & HOURS" className="w-full sm:w-auto" />
         </div>
 
-        {/* REBUILT HASHTAG SECTION */}
         <section className="card-ios p-6 shadow-lg">
           <SectionHeader icon={Hash} title="Hashtags" color={COLORS.BABY_BLUE} />
           <div className="flex flex-wrap gap-2 mb-2 max-h-48 overflow-y-auto no-scrollbar">
@@ -443,8 +433,9 @@ const App = () => {
         </section>
 
         <section className="card-ios p-6 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden flex flex-col min-h-[400px]">
-          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Instagram size={120} /></div>
-          <h2 className="text-xl font-black flex items-center gap-3 mb-4 relative z-10"><Instagram size={20} className="text-pink-500" /> POST PREVIEW</h2>
+          <h2 className="text-xl font-black flex items-center gap-3 mb-4 relative z-10 text-orange-400 tracking-wider">
+            POST PREVIEW
+          </h2>
           <div className="flex-grow bg-slate-800/60 backdrop-blur-md rounded-[20px] p-4 text-[12px] font-mono leading-relaxed text-slate-300 mb-4 border border-white/5 relative z-10 whitespace-pre-wrap overflow-y-auto max-h-[350px]">
             {finalContent}
           </div>
@@ -468,7 +459,7 @@ const App = () => {
           >
             Built by @matataki.creative
           </a>
-          <p className="opacity-40 text-[9px] font-bold uppercase tracking-[0.1em]">©️Sakura saku enterprise LTD.</p>
+          <p className="text-slate-600 opacity-60 text-[9px] font-bold uppercase tracking-[0.1em]">©️Sakura saku enterprise LTD.</p>
         </div>
       </footer>
     </div>

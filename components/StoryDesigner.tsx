@@ -40,7 +40,8 @@ const StoryDesigner: React.FC<StoryDesignerProps> = ({ onClose, initialPhrase, i
     { id: 'hours', text: initialHours, visible: true, x: 50, y: 75, size: 22, color: '#FFFFFF', font: 'font-sans', hasBackground: false, bgOpacity: 0.5, bgColor: '#000000' },
     { id: 'phone', text: initialPhone, visible: true, x: 50, y: 82, size: 22, color: '#FFFFFF', font: 'font-sans', hasBackground: false, bgOpacity: 0.5, bgColor: '#000000' },
   ]);
-  const [selectedId, setSelectedId] = useState<'phrase' | 'hours' | 'phone' | null>(null);
+  // Changed selectedId state type to string | null to match el.id from StoryElement
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [activeTab, setActiveTab] = useState<'text' | 'filter' | 'media'>('media');
@@ -48,7 +49,8 @@ const StoryDesigner: React.FC<StoryDesignerProps> = ({ onClose, initialPhrase, i
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const requestRef = useRef<number>();
+  // Fixed error: Expected 1 arguments, but got 0. Added undefined as initial value.
+  const requestRef = useRef<number | undefined>(undefined);
 
   const selectedElement = elements.find(e => e.id === selectedId);
 
@@ -94,7 +96,7 @@ const StoryDesigner: React.FC<StoryDesignerProps> = ({ onClose, initialPhrase, i
         const scale = Math.max(canvas.width / v.videoWidth, canvas.height / v.videoHeight);
         const x = (canvas.width / 2) - (v.videoWidth / 2) * scale;
         const y = (canvas.height / 2) - (v.videoHeight / 2) * scale;
-        ctx.drawImage(v, x, y, v.videoWidth * scale, v.videoHeight * scale);
+        ctx.drawImage(v, x, y, v.videoWidth * scale, v.videoWidth * scale);
       }
       ctx.restore();
     } else {
